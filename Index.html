@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Railway Crossing Duty Report</title>
+<style>
+:root{--primary:#174ea6;--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#667085;--border:#d9e0ea}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+.container{max-width:1050px;margin:auto;padding:18px}
+.header{background:linear-gradient(135deg,#174ea6,#0b7dda);color:white;padding:22px;border-radius:18px;margin-bottom:16px;box-shadow:0 8px 24px #174ea633}
+.header h1{margin:0 0 6px;font-size:25px}.header p{margin:0;opacity:.9}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 4px 15px #1018280d}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}
+input,select,button{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:#fff}
+input:focus,select:focus{outline:2px solid #174ea633;border-color:var(--primary)}
+.buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+button{cursor:pointer;font-weight:700;border:0;background:var(--primary);color:white}
+button.secondary{background:#eef3fb;color:#174ea6;border:1px solid #cdd9ed}
+button.whatsapp{background:#20a951}
+button.danger{background:#d92d20}
+.report-title{text-align:center;border-bottom:2px solid var(--primary);padding-bottom:12px;margin-bottom:12px}
+.report-title h2{margin:0 0 5px}.date{color:var(--muted);font-weight:700}
+table{width:100%;border-collapse:collapse}th,td{padding:11px 10px;border-bottom:1px solid var(--border);text-align:left}th{background:#f0f5fc;color:#174ea6}td:first-child{font-weight:700}.duty{font-weight:800}
+.day{color:#0b7a35}.night{color:#6741d9}.leave{color:#b54708}.absent{color:#d92d20}.cr{color:#9c2bad}.tsm{color:#155eef}
+.status{display:inline-block;padding:5px 9px;border-radius:999px;background:#f2f4f7}
+.small{font-size:12px;color:var(--muted)}
+.footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+@media(max-width:700px){.controls{grid-template-columns:1fr}.buttons{grid-template-columns:1fr 1fr}th,td{padding:9px 7px;font-size:13px}}
+@media print{body{background:white}.no-print{display:none!important}.card{box-shadow:none;border:0}.container{max-width:none;padding:0}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🚉 Railway Crossing Duty Report</h1>
+    <p>Dynamic daily duty report card</p>
+  </div>
+
+  <div class="card no-print">
+    <div class="controls">
+      <div>
+        <label for="person">Select Name</label>
+        <select id="person"></select>
+      </div>
+      <div>
+        <label for="type">Duty Type</label>
+        <select id="type">
+          <option value="crossing">Railway Crossing</option>
+          <option value="tsm">TSM</option>
+          <option value="leave">Leave (L)</option>
+          <option value="cl">CL (Casual Leave)</option>
+          <option value="seek">Seek Leave</option>
+          <option value="absent">Absent (A)</option>
+          <option value="cr">CR</option>
+        </select>
+      </div>
+      <div id="crossingBox">
+        <label for="number">Crossing No.</label>
+        <input id="number" type="text" inputmode="numeric" placeholder="e.g. 133">
+      </div>
+      <div id="shiftBox">
+        <label for="shift">Shift</label>
+        <select id="shift">
+          <option value="day">Day</option>
+          <option value="night">Night</option>
+        </select>
+      </div>
+      <div id="tsmBox" style="display:none">
+        <label for="tsmNo">TSM No.</label>
+        <input id="tsmNo" type="text" inputmode="numeric" placeholder="e.g. 05">
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="saveBtn">➕ Add / Update</button>
+      <button class="secondary" id="resetBtn">↺ Reset</button>
+      <button class="secondary" id="copyBtn">📋 Copy Report</button>
+      <button class="whatsapp" id="waBtn">💬 WhatsApp</button>
+    </div>
+    <div class="buttons" style="grid-template-columns:1fr 1fr">
+      <button class="secondary" onclick="window.print()">🖨️ Print / PDF</button>
+      <button class="danger" id="clearBtn">🗑️ Clear All</button>
+    </div>
+  </div>
+
+  <div class="card" id="report">
+    <div class="report-title">
+      <h2>Railway Crossing Duty Report</h2>
+      <div class="date" id="reportDate"></div>
+    </div>
+    <table>
+      <thead><tr><th style="width:8%">No.</th><th>Name</th><th>Duty / Crossing</th></tr></thead>
+      <tbody id="reportBody"></tbody>
+    </table>
+  </div>
+  <div class="footer">Auto-generated report • Data is saved in this browser</div>
+</div>
+
+<script>
+const PEOPLE = [
+  "Sanjay","Sahdev","Mahesh D","Pravin","Mahesh K","Har Kelas","Sailesh",
+  "Harji","Pradeep","Sumer","Rohit","Arvind","Pankaj","Pintu","Ravi",
+  "Mukesh","Sachin","Prahlad","Yogesh"
+];
+
+const DEFAULTS = {
+  "Sanjay":{type:"crossing",number:"133",shift:"night"},
+  "Sahdev":{type:"tsm",tsmNo:"05"},
+  "Mahesh D":{type:"tsm",tsmNo:"06"},
+  "Pravin":{type:"tsm",tsmNo:"07"},
+  "Mahesh K":{type:"leave"},
+  "Har Kelas":{type:"absent"},
+  "Sailesh":{type:"crossing",number:"136",shift:"night"},
+  "Harji":{type:"tsm",tsmNo:"08"},
+  "Pradeep":{type:"crossing",number:"132",shift:"day"},
+  "Sumer":{type:"crossing",number:"128",shift:"day"},
+  "Rohit":{type:"cr"},
+  "Arvind":{type:"crossing",number:"127",shift:"day"},
+  "Pankaj":{type:"leave"},
+  "Pintu":{type:"leave"},
+  "Ravi":{type:"crossing",number:"130",shift:"day"},
+  "Mukesh":{type:"crossing",number:"122",shift:"night"},
+  "Sachin":{type:"leave"},
+  "Prahlad":{type:"crossing",number:"136",shift:"day"},
+  "Yogesh":{type:"crossing",number:"131",shift:"day"}
+};
+
+const person=document.getElementById("person"), type=document.getElementById("type");
+const number=document.getElementById("number"), shift=document.getElementById("shift"), tsmNo=document.getElementById("tsmNo");
+const crossingBox=document.getElementById("crossingBox"), shiftBox=document.getElementById("shiftBox"), tsmBox=document.getElementById("tsmBox");
+const reportBody=document.getElementById("reportBody");
+
+function today(){
+  const d=new Date();
+  return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+}
+document.getElementById("reportDate").textContent=today();
+
+let data=JSON.parse(localStorage.getItem("railwayDutyReport")||"null");
+if(!data) data=structuredClone(DEFAULTS);
+
+PEOPLE.forEach(n=>person.add(new Option(n,n)));
+
+function saveData(){localStorage.setItem("railwayDutyReport",JSON.stringify(data));}
+
+function updateFields(){
+  const v=type.value;
+  const crossing=v==="crossing";
+  const tsm=v==="tsm";
+  crossingBox.style.display=crossing?"block":"none";
+  shiftBox.style.display=crossing?"block":"none";
+  tsmBox.style.display=tsm?"block":"none";
+}
+function loadPerson(){
+  const d=data[person.value]||{type:"crossing",number:"",shift:"day"};
+  type.value=d.type||"crossing"; number.value=d.number||""; shift.value=d.shift||"day"; tsmNo.value=d.tsmNo||"";
+  updateFields();
+}
+function getEntry(){
+  const v=type.value;
+  if(v==="crossing") return {type:v,number:number.value.trim(),shift:shift.value};
+  if(v==="tsm") return {type:v,tsmNo:tsmNo.value.trim()};
+  return {type:v};
+}
+function formatDuty(d){
+  if(!d) return '<span class="status">—</span>';
+  if(d.type==="crossing"){
+    if(!d.number) return '<span class="status">Not Set</span>';
+    return `<span class="duty ${d.shift}">🚉 ${escapeHtml(d.number)} ${d.shift==="day"?"Day":"Night"}</span>`;
+  }
+  if(d.type==="tsm") return `<span class="duty tsm">TSM ${escapeHtml(d.tsmNo||"")}</span>`;
+  if(d.type==="leave") return '<span class="duty leave">L — Leave</span>';
+  if(d.type==="cl") return '<span class="duty leave">CL — Casual Leave</span>';
+  if(d.type==="seek") return '<span class="duty leave">Seek Leave</span>';
+  if(d.type==="absent") return '<span class="duty absent">A — Absent</span>';
+  if(d.type==="cr") return '<span class="duty cr">CR</span>';
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+function render(){
+  reportBody.innerHTML=PEOPLE.map((n,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(n)}</td><td>${formatDuty(data[n])}</td></tr>`).join("");
+}
+function plainReport(){
+  return `🚉 RAILWAY CROSSING DUTY REPORT\n📅 ${today()}\n\n`+
+    PEOPLE.map((n,i)=>`${i+1}. ${n} - ${plainDuty(data[n])}`).join("\n");
+}
+function plainDuty(d){
+  if(!d) return "Not Set";
+  if(d.type==="crossing") return d.number ? `${d.number} ${d.shift}` : "Not Set";
+  if(d.type==="tsm") return `TSM ${d.tsmNo||""}`.trim();
+  if(d.type==="leave") return "L";
+  if(d.type==="cl") return "CL";
+  if(d.type==="seek") return "Seek Leave";
+  if(d.type==="absent") return "A";
+  return "CR";
+}
+
+document.getElementById("saveBtn").onclick=()=>{
+  const entry=getEntry();
+  if(entry.type==="crossing" && !entry.number) return alert("Please enter Railway Crossing No.");
+  if(entry.type==="tsm" && !entry.tsmNo) return alert("Please enter TSM No.");
+  data[person.value]=entry; saveData(); render();
+  alert(`${person.value} duty updated successfully.`);
+};
+document.getElementById("resetBtn").onclick=()=>loadPerson();
+type.onchange=updateFields; person.onchange=loadPerson;
+document.getElementById("copyBtn").onclick=async()=>{
+  try{await navigator.clipboard.writeText(plainReport());alert("Report copied successfully.");}
+  catch(e){prompt("Copy the report below:",plainReport());}
+};
+document.getElementById("waBtn").onclick=()=>{
+  window.open("https://wa.me/?text="+encodeURIComponent(plainReport()),"_blank");
+};
+document.getElementById("clearBtn").onclick=()=>{
+  if(confirm("Clear all saved duty values?")){data={};saveData();render();}
+};
+
+loadPerson(); render();
+</script>
+</body>
+          </html>
